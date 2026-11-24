@@ -21,8 +21,9 @@ type Collector struct {
 	Timeout  time.Duration
 	Niks3    *niks3.Client
 	Comin    *comin.Client
-	Ntfy     *ntfy.Client
-	Store    *store.Store
+	// Ntfy, if set, is polled for pin records.
+	Ntfy  *ntfy.Client
+	Store *store.Store
 
 	mu   sync.RWMutex
 	snap state.Snapshot
@@ -53,11 +54,13 @@ func (c *Collector) refresh(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
 
-	recs, cursor, err := c.Ntfy.Poll(ctx, c.Store.Cursor())
-	if err != nil {
-		slog.Warn("ntfy poll", "err", err)
-	} else if err := c.Store.AddNtfy(recs, cursor); err != nil {
-		slog.Error("store pin records", "err", err)
+	if c.Ntfy != nil {
+		recs, cursor, err := c.Ntfy.Poll(ctx, c.Store.Cursor())
+		if err != nil {
+			slog.Warn("ntfy poll", "err", err)
+		} else if err := c.Store.AddNtfy(recs, cursor); err != nil {
+			slog.Error("store pin records", "err", err)
+		}
 	}
 	latest := c.Store.Latest()
 
