@@ -57,12 +57,12 @@ Add this flake as an input, then on the host that runs it:
     hosts = [ "host1" "host2" ];
     niks3Url = "http://niks3.example.ts.net:5751";
     ntfyTopicUrl = "https://ntfy.example.com/pins";
-    # listen, cominPort: same defaults as the flags
+    # address = "127.0.0.1"; port = 8090; cominPort = 4243;
   };
 }
 ```
 
-The service runs as a `DynamicUser` and keeps its state in `/var/lib/deploy-dashboard/state.json`. It listens on loopback only, so put a reverse proxy in front of it.
+The service runs as a `DynamicUser` and keeps its state in `/var/lib/deploy-dashboard/state.json`. By default it listens on loopback only, so put a reverse proxy in front of it, e.g. at `config.services.deploy-dashboard.port`.
 
 ### Prerequisites
 

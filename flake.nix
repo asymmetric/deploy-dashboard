@@ -47,9 +47,15 @@
               type = lib.types.package;
               default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
             };
-            listen = lib.mkOption {
+            address = lib.mkOption {
               type = lib.types.str;
-              default = "127.0.0.1:8090";
+              default = "127.0.0.1";
+              description = "Address to listen on.";
+            };
+            port = lib.mkOption {
+              type = lib.types.port;
+              default = 8090;
+              description = "Port to listen on.";
             };
             hosts = lib.mkOption {
               type = lib.types.listOf lib.types.str;
@@ -78,7 +84,10 @@
               serviceConfig = {
                 ExecStart = lib.escapeShellArgs [
                   (lib.getExe cfg.package)
-                  "-listen=${cfg.listen}"
+                  # IPv6 addresses need brackets in host:port
+                  "-listen=${
+                    if lib.hasInfix ":" cfg.address then "[${cfg.address}]" else cfg.address
+                  }:${toString cfg.port}"
                   "-hosts=${lib.concatStringsSep "," cfg.hosts}"
                   "-niks3-url=${cfg.niks3Url}"
                   "-ntfy-topic-url=${cfg.ntfyTopicUrl}"
