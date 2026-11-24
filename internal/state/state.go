@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
-	"github.com/asymmetric/deploy-dashboard/internal/ntfy"
+	"github.com/asymmetric/deploy-dashboard/internal/pin"
 )
 
 // Kind is a host's derived deployment state.
@@ -40,7 +40,7 @@ type Host struct {
 	SeenAt time.Time
 
 	// Record is the last pin published by CI for this host, if any.
-	Record *ntfy.PinRecord
+	Record *pin.Record
 }
 
 // Snapshot is the state of all hosts at one point in time.

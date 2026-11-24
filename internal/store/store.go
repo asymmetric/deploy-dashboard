@@ -1,5 +1,5 @@
 // Package store persists pin records, so the dashboard doesn't depend on
-// ntfy's cache retention, and the last comin status seen per host, so a host
+// their source keeping them (e.g. ntfy's cache retention), and the last comin status seen per host, so a host
 // that is offline (e.g. a laptop) still shows what it last ran.
 package store
 
@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
-	"github.com/asymmetric/deploy-dashboard/internal/ntfy"
+	"github.com/asymmetric/deploy-dashboard/internal/pin"
 )
 
 // seenSaveInterval bounds how often an unchanged comin status is written
@@ -39,9 +39,9 @@ type Store struct {
 }
 
 type data struct {
-	Cursor string                    `json:"cursor"`
-	Latest map[string]ntfy.PinRecord `json:"latest"`
-	Seen   map[string]Seen           `json:"seen"`
+	Cursor string                `json:"cursor"`
+	Latest map[string]pin.Record `json:"latest"`
+	Seen   map[string]Seen       `json:"seen"`
 }
 
 // Open loads path, or starts empty if it doesn't exist.
@@ -57,7 +57,7 @@ func Open(path string) (*Store, error) {
 		}
 	}
 	if s.data.Latest == nil {
-		s.data.Latest = map[string]ntfy.PinRecord{}
+		s.data.Latest = map[string]pin.Record{}
 	}
 	if s.data.Seen == nil {
 		s.data.Seen = map[string]Seen{}
@@ -76,23 +76,36 @@ func (s *Store) Cursor() string {
 }
 
 // Latest returns the most recent record for each host.
-func (s *Store) Latest() map[string]ntfy.PinRecord {
+func (s *Store) Latest() map[string]pin.Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return maps.Clone(s.data.Latest)
 }
 
 // Add records rs (in publish order) and writes the file.
-func (s *Store) Add(rs []ntfy.PinRecord) error {
-	if len(rs) == 0 {
-		return nil
-	}
+func (s *Store) Add(rs ...pin.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.add(rs, s.data.Cursor)
+}
+
+// AddNtfy records rs, read from ntfy up to the message with id cursor, and
+// writes the file.
+func (s *Store) AddNtfy(rs []pin.Record, cursor string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.add(rs, cursor)
+}
+
+// add is Add and AddNtfy. The caller holds s.mu.
+func (s *Store) add(rs []pin.Record, cursor string) error {
+	if len(rs) == 0 && cursor == s.data.Cursor {
+		return nil
+	}
 	for _, r := range rs {
 		s.data.Latest[r.Host] = r
-		s.data.Cursor = r.MsgID
 	}
+	s.data.Cursor = cursor
 	return s.save()
 }
 

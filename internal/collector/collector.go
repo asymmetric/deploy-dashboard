@@ -53,10 +53,10 @@ func (c *Collector) refresh(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
 
-	recs, err := c.Ntfy.Poll(ctx, c.Store.Cursor())
+	recs, cursor, err := c.Ntfy.Poll(ctx, c.Store.Cursor())
 	if err != nil {
 		slog.Warn("ntfy poll", "err", err)
-	} else if err := c.Store.Add(recs); err != nil {
+	} else if err := c.Store.AddNtfy(recs, cursor); err != nil {
 		slog.Error("store pin records", "err", err)
 	}
 	latest := c.Store.Latest()
