@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="15">
+<title>Deployments</title>
+<style>
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#ddd; --ok:#1a7f37; --pending:#9a6700; --warn:#bc4c00; --bad:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --ok:#3fb950; --pending:#d29922; --warn:#db6d28; --bad:#f85149; }
+  }
+  body { background:var(--bg); color:var(--fg); font:14px/1.4 system-ui, sans-serif; margin:0; padding:16px; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  code { font-family:ui-monospace, monospace; font-size:12px; }
+  .err { color:var(--bad); font-size:12px; }
+  .muted { color:var(--muted); }
+  .ok { color:var(--ok); } .pending { color:var(--pending); } .warn { color:var(--warn); } .bad { color:var(--bad); }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<h1>Deployments</h1>
+<div class="wrap">
+<table>
+  <thead><tr><th>host</th><th>state</th><th>CI pin (commit)</th><th>pinned</th><th>running</th></tr></thead>
+  <tbody>
+  {{range .Hosts}}
+  <tr>
+    <td>{{.Name}}</td>
+    <td class="{{cls .Kind}}">{{.Kind}}</td>
+    <td>{{with .Record}}<code>{{printf "%.8s" .Commit}}</code> <span class="muted">{{ago .Time}} ago</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{if .PinErr}}<span class="err">{{.PinErr}}</span>{{else}}<code title="{{.Pin}}">{{short .Pin}}</code>{{end}}</td>
+    <td>{{if .CominErr}}<span class="err">{{.CominErr}}</span>{{else}}{{with .Comin.StorePath}}<code title="{{.}}">{{short .}}</code>{{else}}<span class="muted">—</span>{{end}} <span class="muted">{{.Comin.DeployStatus}}</span>{{end}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="5" class="muted">no data yet</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted">updated {{if .Updated.IsZero}}never{{else}}{{ago .Updated}} ago{{end}}</p>
+</body>
+</html>
