@@ -33,8 +33,11 @@ var funcs = template.FuncMap{
 		switch k {
 		case state.InSync:
 			return "ok"
-		case state.PendingDeploy, state.Deploying:
+		case state.PendingDeploy, state.Deploying, state.OfflineBehind:
 			return "pending"
+		case state.Offline:
+			// expected for laptops; not an error
+			return "muted"
 		case state.PinnedByHand, state.RunningUnknown:
 			return "warn"
 		default:

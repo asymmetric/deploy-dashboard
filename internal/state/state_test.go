@@ -18,7 +18,10 @@ func TestClassify(t *testing.T) {
 	}{
 		{"pin error", Host{PinErr: errX}, PinUnknown},
 		{"by hand", Host{Pin: a, Record: &ntfy.PinRecord{Toplevel: b}, Comin: &comin.Status{StorePath: a}}, PinnedByHand},
-		{"unreachable", Host{Pin: a, CominErr: errX}, Unreachable},
+		{"unreachable, never seen", Host{Pin: a, CominErr: errX}, Unreachable},
+		{"offline, in sync", Host{Pin: a, CominErr: errX, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}}, Offline},
+		{"offline, behind", Host{Pin: a, CominErr: errX, Comin: &comin.Status{StorePath: b, DeployStatus: comin.StatusDone}}, OfflineBehind},
+		{"offline, old comin", Host{Pin: a, CominErr: errX, Comin: &comin.Status{DeployStatus: comin.StatusDone}}, Offline},
 		{"in sync", Host{Pin: a, Record: &ntfy.PinRecord{Toplevel: a}, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}}, InSync},
 		{"deploying", Host{Pin: a, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusRunning}}, Deploying},
 		{"failing", Host{Pin: a, Comin: &comin.Status{StorePath: b, DeployStatus: comin.StatusFailed}}, DeployFailing},

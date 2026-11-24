@@ -10,7 +10,7 @@ The pipeline it assumes:
 1. CI ([nixbot](https://github.com/Mic92/nixbot) effects) builds each host's toplevel on `main`, pushes it to niks3, and pins it as `pins/<host>`.
 2. comin on each host polls its pin, substitutes the closure and switches to it.
 
-Each host gets one of these states: `in sync`, `deploying`, `pinned, not yet deployed`, `deploy failing`, `pinned by hand` (the pin differs from CI's last pin, e.g. a rollback), `running path unknown`, `unreachable`, `pin unknown`.
+Each host gets one of these states: `in sync`, `deploying`, `pinned, not yet deployed`, `deploy failing`, `pinned by hand` (the pin differs from CI's last pin, e.g. a rollback), `running path unknown`, `offline` and `offline, pin waiting` (the exporter is unreachable, so the last status seen is shown; normal for laptops), `unreachable` (never reached), `pin unknown`.
 
 Planned: PR status and per-host build results from GitHub check runs.
 

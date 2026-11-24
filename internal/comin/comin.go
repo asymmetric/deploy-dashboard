@@ -28,11 +28,11 @@ const (
 type Status struct {
 	// StorePath is the toplevel of comin's last deployment; empty if comin
 	// doesn't export out_path.
-	StorePath string
+	StorePath string `json:"store_path"`
 	// DeployStatus is that deployment's status: init, running, done or failed.
-	DeployStatus string
+	DeployStatus string `json:"deploy_status"`
 	// LastDeploymentFailed is comin_last_deployment_failed.
-	LastDeploymentFailed bool
+	LastDeploymentFailed bool `json:"last_deployment_failed"`
 }
 
 // Client scrapes http://<host>:<Port>/metrics.

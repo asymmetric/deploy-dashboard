@@ -68,6 +68,15 @@ func (c *Collector) refresh(ctx context.Context) {
 			h := state.Host{Name: name}
 			h.Pin, h.PinErr = c.Niks3.Pin(ctx, name)
 			h.Comin, h.CominErr = c.Comin.Scrape(ctx, name)
+			if h.CominErr == nil {
+				h.SeenAt = time.Now()
+				if err := c.Store.Observe(name, *h.Comin, h.SeenAt); err != nil {
+					slog.Error("store comin status", "host", name, "err", err)
+				}
+			} else if seen, ok := c.Store.LastSeen(name); ok {
+				// offline: show what it last ran
+				h.Comin, h.SeenAt = &seen.Status, seen.Time
+			}
 			if r, ok := latest[name]; ok {
 				h.Record = &r
 			}
