@@ -34,7 +34,7 @@ var funcs = template.FuncMap{
 			return "ok"
 		case nixbot.BuildFailed:
 			return "bad"
-		case nixbot.BuildCancelled, nixbot.EffectSkipped:
+		case nixbot.BuildCancelled, nixbot.EffectSkipped, state.StatusUnchanged:
 			return "muted"
 		default:
 			return "pending"

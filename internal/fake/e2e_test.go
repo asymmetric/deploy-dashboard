@@ -78,4 +78,13 @@ func TestEndToEnd(t *testing.T) {
 			t.Errorf("page lacks %q", want)
 		}
 	}
+	// effects that didn't run have no log to link to
+	for _, host := range []string{"pi", "bokkusu"} {
+		if link := "effect:default.pin-" + host; strings.Contains(body, link) {
+			t.Errorf("page links to the missing log %s", link)
+		}
+	}
+	if want := `<span class="muted" title="not run: `; !strings.Contains(body, want) {
+		t.Errorf("page lacks %q for the unchanged effect", want)
+	}
 }

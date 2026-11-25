@@ -35,7 +35,7 @@
   <tr>
     <td>{{.Name}}</td>
     <td class="{{cls .Kind}}">{{.Kind}}</td>
-    <td>{{with .CI}}{{if .Effect}}<a class="{{ciCls .Effect.Status}}" href="{{.LogURL}}"{{with .Error}} title="{{.}}"{{end}}>{{.Effect.Status}}</a>{{else}}<span class="muted">—</span>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{with .CI}}{{if not .Effect}}<span class="muted">—</span>{{else if .LogURL}}<a class="{{ciCls .Status}}" href="{{.LogURL}}"{{with .Title}} title="{{.}}"{{end}}>{{.Status}}</a>{{else}}<span class="{{ciCls .Status}}"{{with .Title}} title="{{.}}"{{end}}>{{.Status}}</span>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{with .Record}}{{if $.Repo.URL}}<a href="{{$.Repo.CommitURL .Commit}}"><code>{{printf "%.8s" .Commit}}</code></a>{{else}}<code>{{printf "%.8s" .Commit}}</code>{{end}} <span class="muted">{{ago .Time}} ago</span>{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{if .PinErr}}<span class="err">{{.PinErr}}</span>{{else}}<code title="{{.Pin}}">{{short .Pin}}</code>{{end}}</td>
     <td>{{if not .Comin}}<span class="err">{{.CominErr}}</span>{{else}}{{with .Comin.StorePath}}<code title="{{.}}">{{short .}}</code>{{else}}<span class="muted">—</span>{{end}} <span class="muted">{{.Comin.DeployStatus}}</span>{{if .CominErr}} <span class="muted" title="{{.CominErr}}">· last seen {{ago .SeenAt}} ago</span>{{end}}{{end}}</td>

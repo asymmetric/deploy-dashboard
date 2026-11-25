@@ -23,7 +23,8 @@ const (
 	BuildCancelled  = "cancelled"
 )
 
-// Effect statuses. An effect skipped by when.changed is succeeded.
+// Effect statuses. An effect skipped by when.changed is succeeded, see
+// Effect.Unchanged.
 const (
 	EffectPending   = "pending"
 	EffectRunning   = "running"
@@ -52,6 +53,26 @@ type Effect struct {
 	Name   string  `json:"name"`
 	Status string  `json:"status"`
 	Error  *string `json:"error"`
+	// ReusedFrom is the id of the earlier run whose when.changed inputs
+	// matched, when nixbot settled this one as succeeded without running it.
+	ReusedFrom *int64 `json:"reused_from"`
+}
+
+// Unchanged reports whether the effect succeeded without running, because
+// its when.changed inputs are those of an earlier successful run.
+func (e Effect) Unchanged() bool {
+	return e.ReusedFrom != nil
+}
+
+// HasLog reports whether the effect has a log: it ran, or is running.
+func (e Effect) HasLog() bool {
+	switch e.Status {
+	case EffectPending, EffectSkipped:
+		return false
+	case EffectSucceeded:
+		return !e.Unchanged()
+	}
+	return true
 }
 
 // Running reports whether b hasn't finished yet.

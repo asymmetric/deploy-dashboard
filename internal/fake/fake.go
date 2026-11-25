@@ -45,7 +45,8 @@ type Host struct {
 	RecordCommit   string
 
 	// Effect is the status of the host's pin effect in the newest build;
-	// empty if the build has none.
+	// empty if the build has none. "unchanged" is succeeded without running
+	// (when.changed).
 	Effect    string
 	EffectErr string
 
@@ -90,6 +91,7 @@ var Default = Scenario{
 		{Name: "nu", Pin: PathNew, Deploy: "done", RecordToplevel: PathNew, Effect: "succeeded", Want: state.RunningUnknown},
 		{Name: "xi", Pin: PathNew, RecordToplevel: PathNew, Effect: "succeeded", Want: state.Unreachable},
 		{Name: "omicron", Deploy: "done", Running: PathNew, Want: state.PinUnknown},
+		{Name: "pi", Pin: PathNew, Deploy: "done", Running: PathNew, RecordToplevel: PathNew, Effect: state.StatusUnchanged, Want: state.InSync},
 	},
 }
 
@@ -149,7 +151,11 @@ func (s Scenario) Handler() http.Handler {
 			if h.Effect == "" {
 				continue
 			}
-			e := map[string]any{"kind": "push", "name": s.EffectPrefix + h.Name, "status": h.Effect, "error": nil}
+			e := map[string]any{"kind": "push", "name": s.EffectPrefix + h.Name, "status": h.Effect, "error": nil, "reused_from": nil}
+			if h.Effect == state.StatusUnchanged {
+				// settled by when.changed without running, as nixbot reports it
+				e["status"], e["reused_from"] = "succeeded", 41
+			}
 			if h.EffectErr != "" {
 				e["error"] = h.EffectErr
 			}

@@ -131,7 +131,9 @@ func (c *Collector) hostCI(build *state.Build, effects []nixbot.Effect, host str
 	for _, e := range effects {
 		if e.Kind == nixbot.KindPush && e.Name == name {
 			ci.Effect = &e
-			ci.LogURL = c.Nixbot.EffectLogURL(build.Number, name)
+			if e.HasLog() {
+				ci.LogURL = c.Nixbot.EffectLogURL(build.Number, name)
+			}
 			break
 		}
 	}

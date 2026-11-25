@@ -67,3 +67,26 @@ func TestNotVisible(t *testing.T) {
 		t.Error("want an error for 404")
 	}
 }
+
+func TestUnchanged(t *testing.T) {
+	source := int64(41)
+	for _, tc := range []struct {
+		name              string
+		e                 Effect
+		unchanged, hasLog bool
+	}{
+		{"reused", Effect{Status: EffectSucceeded, ReusedFrom: &source}, true, false},
+		{"ran", Effect{Status: EffectSucceeded}, false, true},
+		{"failed", Effect{Status: EffectFailed}, false, true},
+		{"running", Effect{Status: EffectRunning}, false, true},
+		{"pending", Effect{Status: EffectPending}, false, false},
+		{"skipped", Effect{Status: EffectSkipped}, false, false},
+	} {
+		if got := tc.e.Unchanged(); got != tc.unchanged {
+			t.Errorf("%s: Unchanged() = %v", tc.name, got)
+		}
+		if got := tc.e.HasLog(); got != tc.hasLog {
+			t.Errorf("%s: HasLog() = %v", tc.name, got)
+		}
+	}
+}

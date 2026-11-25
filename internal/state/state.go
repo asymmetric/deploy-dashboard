@@ -89,10 +89,16 @@ func (c *CI) Running() bool {
 	return c.Build.Running()
 }
 
+// StatusUnchanged is CI.Status for an effect that succeeded without running.
+const StatusUnchanged = "unchanged"
+
 // Status is a short description of the build's state for the host: its
 // effect's status, or else the build's.
 func (c *CI) Status() string {
 	if c.Effect != nil {
+		if c.Effect.Unchanged() {
+			return StatusUnchanged
+		}
 		return c.Effect.Status
 	}
 	return c.Build.Status
@@ -107,6 +113,14 @@ func (c *CI) Error() string {
 		return *c.Build.Error
 	}
 	return ""
+}
+
+// Title explains Status on hover: the error, or why an effect didn't run.
+func (c *CI) Title() string {
+	if c.Effect != nil && c.Effect.Unchanged() {
+		return "not run: its inputs (the toplevel) are those of its last successful run, so the pin is current"
+	}
+	return c.Error()
 }
 
 // Snapshot is the state of all hosts at one point in time.
