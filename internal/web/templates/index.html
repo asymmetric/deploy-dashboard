@@ -19,6 +19,7 @@
   .muted { color:var(--muted); }
   .ok { color:var(--ok); } .pending { color:var(--pending); } .warn { color:var(--warn); } .bad { color:var(--bad); }
   .wrap { overflow-x:auto; }
+  a { color:inherit; }
 </style>
 </head>
 <body>
@@ -31,7 +32,7 @@
   <tr>
     <td>{{.Name}}</td>
     <td class="{{cls .Kind}}">{{.Kind}}</td>
-    <td>{{with .Record}}<code>{{printf "%.8s" .Commit}}</code> <span class="muted">{{ago .Time}} ago</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td>{{with .Record}}{{if $.Repo.URL}}<a href="{{$.Repo.CommitURL .Commit}}"><code>{{printf "%.8s" .Commit}}</code></a>{{else}}<code>{{printf "%.8s" .Commit}}</code>{{end}} <span class="muted">{{ago .Time}} ago</span>{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{if .PinErr}}<span class="err">{{.PinErr}}</span>{{else}}<code title="{{.Pin}}">{{short .Pin}}</code>{{end}}</td>
     <td>{{if not .Comin}}<span class="err">{{.CominErr}}</span>{{else}}{{with .Comin.StorePath}}<code title="{{.}}">{{short .}}</code>{{else}}<span class="muted">—</span>{{end}} <span class="muted">{{.Comin.DeployStatus}}</span>{{if .CominErr}} <span class="muted" title="{{.CominErr}}">· last seen {{ago .SeenAt}} ago</span>{{end}}{{end}}</td>
   </tr>

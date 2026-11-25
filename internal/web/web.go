@@ -48,12 +48,29 @@ var funcs = template.FuncMap{
 
 var page = template.Must(template.New("").Funcs(funcs).ParseFS(templates, "templates/*.html"))
 
-// Handler serves the dashboard from snap.
-func Handler(snap func() state.Snapshot) http.Handler {
+// Repo is the config repository the pins are built from, used for links.
+// The URL is a GitHub-style web URL, e.g. https://github.com/owner/dotfiles;
+// an empty URL disables the links.
+type Repo struct {
+	URL string
+}
+
+// CommitURL links to commit sha.
+func (r Repo) CommitURL(sha string) string {
+	return strings.TrimRight(r.URL, "/") + "/commit/" + sha
+}
+
+type pageData struct {
+	state.Snapshot
+	Repo Repo
+}
+
+// Handler serves the dashboard from snap, linking commits to repo.
+func Handler(snap func() state.Snapshot, repo Repo) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := page.ExecuteTemplate(w, "index.html", snap()); err != nil {
+		if err := page.ExecuteTemplate(w, "index.html", pageData{snap(), repo}); err != nil {
 			slog.Error("render", "err", err)
 		}
 	})

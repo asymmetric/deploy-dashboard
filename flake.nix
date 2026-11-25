@@ -95,6 +95,12 @@
               default = null;
               description = "ntfy topic to poll for pin records, as an alternative to POST /pins.";
             };
+            repoUrl = lib.mkOption {
+              type = lib.types.nullOr lib.types.str;
+              default = null;
+              example = "https://github.com/owner/dotfiles";
+              description = "Web URL of the config repo, for links to commits. null disables the links.";
+            };
             cominPort = lib.mkOption {
               type = lib.types.port;
               default = 4243;
@@ -117,6 +123,7 @@
                     "-comin-port=${toString cfg.cominPort}"
                     "-state-file=/var/lib/deploy-dashboard/state.json"
                   ]
+                  ++ lib.optional (cfg.repoUrl != null) "-repo-url=${cfg.repoUrl}"
                   ++ lib.optional (cfg.pinsAddress != null) "-pins-listen=${hostPort cfg.pinsAddress cfg.pinsPort}"
                   # %d is the credentials directory
                   ++ lib.optional (cfg.pinsTokenFile != null) "-pins-token-file=%d/pins-token"

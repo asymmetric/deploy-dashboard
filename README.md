@@ -43,6 +43,7 @@ Flags:
 | `-comin-port` | `4243` | comin's Prometheus exporter port on each host |
 | `-state-file` | `state.json` | where pin records and the ntfy read position are kept |
 | `-interval` | `15s` | refresh interval |
+| `-repo-url` | (none) | web URL of the config repo (GitHub-style `/commit/<sha>` paths), for commit links |
 
 `GET /healthz` returns `ok`.
 

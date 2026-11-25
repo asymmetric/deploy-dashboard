@@ -34,6 +34,7 @@ func main() {
 		cominPort  = flag.Int("comin-port", 4243, "comin exporter port on each host")
 		stateFile  = flag.String("state-file", "state.json", "file for persisted pin records")
 		interval   = flag.Duration("interval", 15*time.Second, "refresh interval")
+		repoURL    = flag.String("repo-url", "", "web URL of the config repo, e.g. https://github.com/owner/dotfiles, for commit links (none if empty)")
 	)
 	flag.Parse()
 
@@ -83,7 +84,7 @@ func main() {
 	defer stop()
 	go col.Run(ctx)
 
-	srvs := []*http.Server{{Addr: *listen, Handler: web.Handler(col.Snapshot), ReadHeaderTimeout: 5 * time.Second}}
+	srvs := []*http.Server{{Addr: *listen, Handler: web.Handler(col.Snapshot, web.Repo{URL: *repoURL}), ReadHeaderTimeout: 5 * time.Second}}
 	if *pinsListen != "" {
 		add := func(r pin.Record) error { return st.Add(r) }
 		srvs = append(srvs, &http.Server{Addr: *pinsListen, Handler: web.PinsHandler(hostList, token, add), ReadHeaderTimeout: 5 * time.Second})
