@@ -48,7 +48,7 @@ func (c *Collector) Run(ctx context.Context) {
 	t := time.NewTicker(c.Interval)
 	defer t.Stop()
 	for {
-		c.refresh(ctx)
+		c.Refresh(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -57,7 +57,8 @@ func (c *Collector) Run(ctx context.Context) {
 	}
 }
 
-func (c *Collector) refresh(ctx context.Context) {
+// Refresh polls all sources once and replaces the snapshot.
+func (c *Collector) Refresh(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
 

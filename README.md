@@ -102,3 +102,7 @@ The service runs as a `DynamicUser` and keeps its state in `/var/lib/deploy-dash
 go test ./...
 gopls check -severity=hint <file>.go
 ```
+
+`nix run .#demo` runs the dashboard on http://127.0.0.1:8090 against fake niks3, comin, nixbot and ntfy backends (`internal/fake`, served by `cmd/fake-backends` on 127.0.0.1:8095), with one host in each state. Set `LISTEN` and `FAKE_PORT` to use other ports; extra arguments go to the dashboard. The comin scrapes reach the fakes through `HTTP_PROXY`, so hosts keep their names.
+
+The same scenario, `fake.Default`, drives the end-to-end test in `internal/fake`: each host lists the state it should get, and the test runs a collector refresh against the fakes and checks them. To cover a new state or source, add a host to it.

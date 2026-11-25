@@ -10,14 +10,63 @@
       forAll = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      packages = forAll (pkgs: {
-        default = pkgs.buildGoModule {
-          pname = "deploy-dashboard";
-          version = self.shortRev or self.dirtyShortRev or "dev";
-          src = self;
-          # stdlib only, no go.sum
-          vendorHash = null;
-          meta.mainProgram = "deploy-dashboard";
+      packages = forAll (
+        pkgs:
+        let
+          build =
+            pname: attrs:
+            pkgs.buildGoModule (
+              {
+                inherit pname;
+                version = self.shortRev or self.dirtyShortRev or "dev";
+                src = self;
+                # stdlib only, no go.sum
+                vendorHash = null;
+                subPackages = [ "cmd/${pname}" ];
+                meta.mainProgram = pname;
+              }
+              // attrs
+            );
+        in
+        {
+          default = build "deploy-dashboard" { };
+          # fake backends for `nix run .#demo`; tests ran with default
+          fake-backends = build "fake-backends" { doCheck = false; };
+        }
+      );
+
+      # The dashboard against fake backends (internal/fake), on
+      # http://127.0.0.1:8090 or $LISTEN. Extra arguments go to the dashboard.
+      apps = forAll (pkgs: {
+        demo = {
+          type = "app";
+          program = pkgs.lib.getExe (
+            pkgs.writeShellApplication {
+              name = "deploy-dashboard-demo";
+              runtimeInputs = [
+                self.packages.${pkgs.stdenv.hostPlatform.system}.default
+                self.packages.${pkgs.stdenv.hostPlatform.system}.fake-backends
+                pkgs.curl
+              ];
+              text = ''
+                addr=127.0.0.1:''${FAKE_PORT:-8095}
+                dir=$(mktemp -d)
+                fake-backends -listen "$addr" -token-file "$dir/nixbot-token" &
+                fake=$!
+                trap 'kill "$fake" 2>/dev/null; rm -rf "$dir"' EXIT
+                for _ in $(seq 50); do
+                  curl -fsS -o /dev/null "http://$addr/repos/" 2>/dev/null && break
+                  sleep 0.1
+                done
+                read -ra flags <<< "$(fake-backends -listen "$addr" -token-file "$dir/nixbot-token" -print-flags)"
+                # comin scrapes go through the fakes; loopback is never proxied
+                export HTTP_PROXY="http://$addr" http_proxy="http://$addr"
+                unset NO_PROXY no_proxy
+                deploy-dashboard "''${flags[@]}" -state-file="$dir/state.json" -interval=5s \
+                  -listen="''${LISTEN:-127.0.0.1:8090}" "$@"
+              '';
+            }
+          );
         };
       });
 
