@@ -69,22 +69,26 @@ func (c *CI) Failed() bool {
 		return true
 	}
 	// no effect run: the build failed before effects (eval, other
-	// attributes), or the effect was skipped because one it is after failed
-	return (c.Effect == nil || c.Effect.Status == nixbot.EffectSkipped) &&
+	// attributes), or the effect was skipped (or left pending) because one
+	// it is after failed
+	return (c.Effect == nil || c.Effect.Status == nixbot.EffectSkipped || c.Effect.Status == nixbot.EffectPending) &&
 		c.Build.Status == nixbot.BuildFailed
 }
 
-// Running reports whether the build may still pin a new toplevel.
+// Running reports whether the build may still pin a new toplevel. Once the
+// host's effect exists, it decides: effects finish while the build is still
+// running other ones.
 func (c *CI) Running() bool {
-	if c.Build.Running() {
-		return true
+	if c.Effect != nil {
+		return c.Effect.Status == nixbot.EffectPending || c.Effect.Status == nixbot.EffectRunning
 	}
-	return c.Effect != nil && (c.Effect.Status == nixbot.EffectPending || c.Effect.Status == nixbot.EffectRunning)
+	return c.Build.Running()
 }
 
-// Status is a short description of the build's state for the host.
+// Status is a short description of the build's state for the host: its
+// effect's status, or else the build's.
 func (c *CI) Status() string {
-	if c.Effect != nil && !c.Build.Running() {
+	if c.Effect != nil {
 		return c.Effect.Status
 	}
 	return c.Build.Status

@@ -20,6 +20,9 @@ func TestClassify(t *testing.T) {
 		}
 		return c
 	}
+	if got := ci(nixbot.BuildBuilding, nixbot.EffectFailed).Status(); got != nixbot.EffectFailed {
+		t.Errorf("Status() = %q, want the effect's", got)
+	}
 	for _, tc := range []struct {
 		name string
 		h    Host
@@ -47,6 +50,9 @@ func TestClassify(t *testing.T) {
 		{"effect running", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildSucceeded, nixbot.EffectRunning)}, Building},
 		{"building, pin waiting", Host{Pin: a, Comin: &comin.Status{StorePath: b, DeployStatus: comin.StatusDone}, CI: ci(nixbot.BuildBuilding, "")}, PendingDeploy},
 		{"built", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildSucceeded, nixbot.EffectSucceeded)}, InSync},
+		{"effect succeeded, others still building", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildBuilding, nixbot.EffectSucceeded)}, InSync},
+		{"effect failed, others still building", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildBuilding, nixbot.EffectFailed)}, BuildFailed},
+		{"effect pending in failed build", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildFailed, nixbot.EffectPending)}, BuildFailed},
 		{"cancelled effect", Host{Pin: a, Comin: &synced, CI: ci(nixbot.BuildSucceeded, nixbot.EffectCancelled)}, InSync},
 	} {
 		Classify(&tc.h)
