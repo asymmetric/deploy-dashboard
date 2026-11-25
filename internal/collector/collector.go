@@ -71,7 +71,7 @@ func (c *Collector) Refresh(ctx context.Context) {
 		}
 	}
 	latest := c.Store.Latest()
-	ci := c.ci(ctx)
+	build, effects, buildErr := c.build(ctx)
 
 	hosts := make([]state.Host, len(c.Hosts))
 	var wg sync.WaitGroup
@@ -92,7 +92,7 @@ func (c *Collector) Refresh(ctx context.Context) {
 			if r, ok := latest[name]; ok {
 				h.Record = &r
 			}
-			h.CI, h.CIErr = ci(name)
+			h.CI = c.hostCI(build, effects, name)
 			state.Classify(&h)
 			hosts[i] = h
 		})
@@ -100,33 +100,40 @@ func (c *Collector) Refresh(ctx context.Context) {
 	wg.Wait()
 
 	c.mu.Lock()
-	c.snap = state.Snapshot{Hosts: hosts, Updated: time.Now()}
+	c.snap = state.Snapshot{Hosts: hosts, Build: build, BuildErr: buildErr, Updated: time.Now()}
 	c.mu.Unlock()
 }
 
-// ci fetches the newest build and returns its result for each host.
-func (c *Collector) ci(ctx context.Context) func(host string) (*state.CI, error) {
+// build fetches the newest build and its effects; nil without nixbot or
+// such a build.
+func (c *Collector) build(ctx context.Context) (*state.Build, []nixbot.Effect, error) {
 	if c.Nixbot == nil {
-		return func(string) (*state.CI, error) { return nil, nil }
+		return nil, nil, nil
 	}
 	b, effects, ok, err := c.Nixbot.Latest(ctx, c.NixbotBranch)
 	if err != nil {
 		slog.Warn("nixbot", "err", err)
-		return func(string) (*state.CI, error) { return nil, err }
+		return nil, nil, err
 	}
 	if !ok {
-		return func(string) (*state.CI, error) { return nil, nil }
+		return nil, nil, nil
 	}
-	return func(host string) (*state.CI, error) {
-		ci := &state.CI{Build: b, BuildURL: c.Nixbot.BuildURL(b.Number)}
-		name := strings.ReplaceAll(c.NixbotEffect, "{host}", host)
-		for _, e := range effects {
-			if e.Kind == nixbot.KindPush && e.Name == name {
-				ci.Effect = &e
-				ci.LogURL = c.Nixbot.EffectLogURL(b.Number, name)
-				break
-			}
+	return &state.Build{Build: b, Branch: c.NixbotBranch, URL: c.Nixbot.BuildURL(b.Number)}, effects, nil
+}
+
+// hostCI is build as it concerns host: its pin effect among effects.
+func (c *Collector) hostCI(build *state.Build, effects []nixbot.Effect, host string) *state.CI {
+	if build == nil {
+		return nil
+	}
+	ci := &state.CI{Build: build.Build}
+	name := strings.ReplaceAll(c.NixbotEffect, "{host}", host)
+	for _, e := range effects {
+		if e.Kind == nixbot.KindPush && e.Name == name {
+			ci.Effect = &e
+			ci.LogURL = c.Nixbot.EffectLogURL(build.Number, name)
+			break
 		}
-		return ci, nil
 	}
+	return ci
 }

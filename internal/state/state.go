@@ -45,10 +45,16 @@ type Host struct {
 	// Record is the last pin published by CI for this host, if any.
 	Record *pin.Record
 
-	// CI is the newest default-branch build as it concerns this host, nil
-	// if nixbot isn't configured, has no such build, or CIErr is set.
-	CI    *CI
-	CIErr error
+	// CI is Snapshot.Build as it concerns this host, nil if that is nil.
+	CI *CI
+}
+
+// Build is the newest build of the branch that pins the hosts. It is the
+// same for all hosts; each host's part of it is in Host.CI.
+type Build struct {
+	nixbot.Build
+	Branch string
+	URL    string
 }
 
 // CI is a default-branch build and this host's pin effect in it.
@@ -57,8 +63,6 @@ type CI struct {
 	// Effect is the host's pin effect, nil if the build has none (yet):
 	// effects run only after the build succeeded.
 	Effect *nixbot.Effect
-
-	BuildURL string
 	// LogURL is the effect's log, empty if Effect is nil.
 	LogURL string
 }
@@ -107,8 +111,12 @@ func (c *CI) Error() string {
 
 // Snapshot is the state of all hosts at one point in time.
 type Snapshot struct {
-	Hosts   []Host
-	Updated time.Time
+	Hosts []Host
+	// Build is the newest build, nil if nixbot isn't configured, has no
+	// such build, or BuildErr is set.
+	Build    *Build
+	BuildErr error
+	Updated  time.Time
 }
 
 // Classify sets h.Kind from the other fields.

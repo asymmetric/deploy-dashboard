@@ -12,7 +12,7 @@ The pipeline it assumes:
 
 Each host gets one of these states: `in sync`, `deploying`, `building` (the newest build on `main` is still evaluating, building or running the host's pin effect, so the pin may move), `build failed` (the newest build on `main` won't pin a new toplevel for the host: its pin effect failed, or the build failed before effects ran), `pinned, not yet deployed`, `deploy failing`, `pinned by hand` (the pin differs from CI's last pin, e.g. a rollback), `running path unknown`, `offline` and `offline, pin waiting` (the exporter is unreachable, so the last status seen is shown; normal for laptops), `unreachable` (never reached), `pin unknown`.
 
-With `-nixbot-url`, each row also shows the newest `main` build in [nixbot](https://github.com/Mic92/nixbot) and the status of the host's pin effect, linked to its log.
+With `-nixbot-url`, the page shows the newest `main` build in [nixbot](https://github.com/Mic92/nixbot) above the table, and each row the status of the host's pin effect in it, linked to its log.
 
 Planned: a PR panel from nixbot builds of pull requests.
 

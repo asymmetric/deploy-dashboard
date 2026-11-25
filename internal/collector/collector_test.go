@@ -28,12 +28,15 @@ func TestCI(t *testing.T) {
 		NixbotBranch: "main",
 		NixbotEffect: "default.pin-{host}",
 	}
-	ci := c.ci(context.Background())
-
-	a, err := ci("a")
+	build, effects, err := c.build(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
+	if build.Number != 5 || build.Branch != "main" || build.URL != srv.URL+"/repos/github/o/r/builds/5" {
+		t.Errorf("build = %+v", build)
+	}
+
+	a := c.hostCI(build, effects, "a")
 	if a.Effect == nil || a.Effect.Kind != nixbot.KindPush || a.Effect.Status != nixbot.EffectRunning {
 		t.Errorf("a: effect = %+v, want the push effect", a.Effect)
 	}
@@ -41,18 +44,19 @@ func TestCI(t *testing.T) {
 		t.Errorf("a: LogURL = %q, want %q", a.LogURL, want)
 	}
 
-	b, err := ci("b")
-	if err != nil {
-		t.Fatal(err)
-	}
+	b := c.hostCI(build, effects, "b")
 	if b.Build.Number != 5 || b.Effect != nil || b.LogURL != "" {
 		t.Errorf("b: %+v, want build 5 without effect", b)
 	}
 }
 
 func TestCIOff(t *testing.T) {
-	ci, err := (&Collector{}).ci(context.Background())("a")
-	if ci != nil || err != nil {
-		t.Errorf("got %v, %v; want nothing without nixbot", ci, err)
+	c := &Collector{}
+	build, effects, err := c.build(context.Background())
+	if build != nil || effects != nil || err != nil {
+		t.Errorf("got %v, %v, %v; want nothing without nixbot", build, effects, err)
+	}
+	if ci := c.hostCI(nil, nil, "a"); ci != nil {
+		t.Errorf("hostCI = %+v, want nil", ci)
 	}
 }

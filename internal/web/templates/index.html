@@ -24,15 +24,18 @@
 </head>
 <body>
 <h1>Deployments</h1>
+{{if .BuildErr}}<p>newest build: <span class="err">{{.BuildErr}}</span></p>
+{{else}}{{with .Build}}<p>newest build of <code>{{.Branch}}</code>: <a href="{{.URL}}">#{{.Number}}</a> {{if $.Repo.URL}}<a href="{{$.Repo.CommitURL .CommitSHA}}"><code>{{printf "%.8s" .CommitSHA}}</code></a>{{else}}<code>{{printf "%.8s" .CommitSHA}}</code>{{end}} <span class="{{ciCls .Status}}"{{with .Error}} title="{{.}}"{{end}}>{{.Status}}</span></p>
+{{end}}{{end}}
 <div class="wrap">
 <table>
-  <thead><tr><th>host</th><th>state</th><th>newest build</th><th>built from</th><th>pinned toplevel</th><th>running toplevel</th></tr></thead>
+  <thead><tr><th>host</th><th>state</th><th title="the host's pin effect in the newest build">CI</th><th>built from</th><th>pinned toplevel</th><th>running toplevel</th></tr></thead>
   <tbody>
   {{range .Hosts}}
   <tr>
     <td>{{.Name}}</td>
     <td class="{{cls .Kind}}">{{.Kind}}</td>
-    <td>{{if .CIErr}}<span class="err">{{.CIErr}}</span>{{else}}{{with .CI}}<a href="{{.BuildURL}}">#{{.Build.Number}}</a> {{if $.Repo.URL}}<a href="{{$.Repo.CommitURL .Build.CommitSHA}}"><code>{{printf "%.8s" .Build.CommitSHA}}</code></a>{{else}}<code>{{printf "%.8s" .Build.CommitSHA}}</code>{{end}} {{if .LogURL}}<a class="{{ciCls .Status}}" href="{{.LogURL}}" title="{{.Error}}">{{.Status}}</a>{{else}}<span class="{{ciCls .Status}}" title="{{.Error}}">{{.Status}}</span>{{end}}{{else}}<span class="muted">—</span>{{end}}{{end}}</td>
+    <td>{{with .CI}}{{if .Effect}}<a class="{{ciCls .Effect.Status}}" href="{{.LogURL}}"{{with .Error}} title="{{.}}"{{end}}>{{.Effect.Status}}</a>{{else}}<span class="muted">—</span>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{with .Record}}{{if $.Repo.URL}}<a href="{{$.Repo.CommitURL .Commit}}"><code>{{printf "%.8s" .Commit}}</code></a>{{else}}<code>{{printf "%.8s" .Commit}}</code>{{end}} <span class="muted">{{ago .Time}} ago</span>{{else}}<span class="muted">—</span>{{end}}</td>
     <td>{{if .PinErr}}<span class="err">{{.PinErr}}</span>{{else}}<code title="{{.Pin}}">{{short .Pin}}</code>{{end}}</td>
     <td>{{if not .Comin}}<span class="err">{{.CominErr}}</span>{{else}}{{with .Comin.StorePath}}<code title="{{.}}">{{short .}}</code>{{else}}<span class="muted">—</span>{{end}} <span class="muted">{{.Comin.DeployStatus}}</span>{{if .CominErr}} <span class="muted" title="{{.CominErr}}">· last seen {{ago .SeenAt}} ago</span>{{end}}{{end}}</td>
