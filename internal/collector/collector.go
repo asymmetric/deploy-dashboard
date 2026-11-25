@@ -4,11 +4,13 @@ package collector
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
 	"github.com/asymmetric/deploy-dashboard/internal/niks3"
+	"github.com/asymmetric/deploy-dashboard/internal/nixbot"
 	"github.com/asymmetric/deploy-dashboard/internal/ntfy"
 	"github.com/asymmetric/deploy-dashboard/internal/state"
 	"github.com/asymmetric/deploy-dashboard/internal/store"
@@ -24,6 +26,11 @@ type Collector struct {
 	// Ntfy, if set, is polled for pin records.
 	Ntfy  *ntfy.Client
 	Store *store.Store
+	// Nixbot, if set, is asked for the newest build of NixbotBranch, and
+	// each host's effect in it, named NixbotEffect with {host} replaced.
+	Nixbot       *nixbot.Client
+	NixbotBranch string
+	NixbotEffect string
 
 	mu   sync.RWMutex
 	snap state.Snapshot
@@ -63,6 +70,7 @@ func (c *Collector) refresh(ctx context.Context) {
 		}
 	}
 	latest := c.Store.Latest()
+	ci := c.ci(ctx)
 
 	hosts := make([]state.Host, len(c.Hosts))
 	var wg sync.WaitGroup
@@ -83,6 +91,7 @@ func (c *Collector) refresh(ctx context.Context) {
 			if r, ok := latest[name]; ok {
 				h.Record = &r
 			}
+			h.CI, h.CIErr = ci(name)
 			state.Classify(&h)
 			hosts[i] = h
 		})
@@ -92,4 +101,31 @@ func (c *Collector) refresh(ctx context.Context) {
 	c.mu.Lock()
 	c.snap = state.Snapshot{Hosts: hosts, Updated: time.Now()}
 	c.mu.Unlock()
+}
+
+// ci fetches the newest build and returns its result for each host.
+func (c *Collector) ci(ctx context.Context) func(host string) (*state.CI, error) {
+	if c.Nixbot == nil {
+		return func(string) (*state.CI, error) { return nil, nil }
+	}
+	b, effects, ok, err := c.Nixbot.Latest(ctx, c.NixbotBranch)
+	if err != nil {
+		slog.Warn("nixbot", "err", err)
+		return func(string) (*state.CI, error) { return nil, err }
+	}
+	if !ok {
+		return func(string) (*state.CI, error) { return nil, nil }
+	}
+	return func(host string) (*state.CI, error) {
+		ci := &state.CI{Build: b, BuildURL: c.Nixbot.BuildURL(b.Number)}
+		name := strings.ReplaceAll(c.NixbotEffect, "{host}", host)
+		for _, e := range effects {
+			if e.Kind == nixbot.KindPush && e.Name == name {
+				ci.Effect = &e
+				ci.LogURL = c.Nixbot.EffectLogURL(b.Number, name)
+				break
+			}
+		}
+		return ci, nil
+	}
 }

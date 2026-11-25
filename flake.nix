@@ -105,6 +105,37 @@
               type = lib.types.port;
               default = 4243;
             };
+            nixbot = {
+              url = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                example = "https://nixbot.example.ts.net";
+                description = "nixbot web URL, for the state of the newest build of each host. null disables it.";
+              };
+              repo = lib.mkOption {
+                type = lib.types.str;
+                example = "github/owner/dotfiles";
+                description = "The config repo as it appears in nixbot's URLs: <forge>/<owner>/<name>.";
+              };
+              tokenFile = lib.mkOption {
+                type = lib.types.nullOr lib.types.path;
+                default = null;
+                description = ''
+                  File with a nixbot API token (created at <url>/settings), needed
+                  for private repos. null sends no token.
+                '';
+              };
+              branch = lib.mkOption {
+                type = lib.types.str;
+                default = "main";
+                description = "Branch whose builds pin the hosts.";
+              };
+              effect = lib.mkOption {
+                type = lib.types.str;
+                default = "default.pin-{host}";
+                description = "Name of each host's pin effect; {host} is replaced by the host.";
+              };
+            };
           };
 
           config = lib.mkIf cfg.enable {
@@ -128,9 +159,20 @@
                   # %d is the credentials directory
                   ++ lib.optional (cfg.pinsTokenFile != null) "-pins-token-file=%d/pins-token"
                   ++ lib.optional (cfg.ntfyTopicUrl != null) "-ntfy-topic-url=${cfg.ntfyTopicUrl}"
+                  ++ lib.optionals (cfg.nixbot.url != null) (
+                    [
+                      "-nixbot-url=${cfg.nixbot.url}"
+                      "-nixbot-repo=${cfg.nixbot.repo}"
+                      "-nixbot-branch=${cfg.nixbot.branch}"
+                      "-nixbot-effect=${cfg.nixbot.effect}"
+                    ]
+                    ++ lib.optional (cfg.nixbot.tokenFile != null) "-nixbot-token-file=%d/nixbot-token"
+                  )
                 );
-                # DynamicUser can't read the token file directly
-                LoadCredential = lib.optional (cfg.pinsTokenFile != null) "pins-token:${cfg.pinsTokenFile}";
+                # DynamicUser can't read the token files directly
+                LoadCredential =
+                  lib.optional (cfg.pinsTokenFile != null) "pins-token:${cfg.pinsTokenFile}"
+                  ++ lib.optional (cfg.nixbot.url != null && cfg.nixbot.tokenFile != null) "nixbot-token:${cfg.nixbot.tokenFile}";
                 DynamicUser = true;
                 StateDirectory = "deploy-dashboard";
                 Restart = "on-failure";

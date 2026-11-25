@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
+	"github.com/asymmetric/deploy-dashboard/internal/nixbot"
 	"github.com/asymmetric/deploy-dashboard/internal/pin"
 )
 
@@ -22,6 +23,8 @@ const (
 	OfflineBehind  Kind = "offline, pin waiting"
 	PinUnknown     Kind = "pin unknown"
 	RunningUnknown Kind = "running path unknown"
+	BuildFailed    Kind = "build failed"
+	Building       Kind = "building"
 )
 
 // Host is one row of the dashboard.
@@ -41,6 +44,61 @@ type Host struct {
 
 	// Record is the last pin published by CI for this host, if any.
 	Record *pin.Record
+
+	// CI is the newest default-branch build as it concerns this host, nil
+	// if nixbot isn't configured, has no such build, or CIErr is set.
+	CI    *CI
+	CIErr error
+}
+
+// CI is a default-branch build and this host's pin effect in it.
+type CI struct {
+	Build nixbot.Build
+	// Effect is the host's pin effect, nil if the build has none (yet):
+	// effects run only after the build succeeded.
+	Effect *nixbot.Effect
+
+	BuildURL string
+	// LogURL is the effect's log, empty if Effect is nil.
+	LogURL string
+}
+
+// Failed reports whether the build won't pin a new toplevel for the host.
+func (c *CI) Failed() bool {
+	if c.Effect != nil && c.Effect.Status == nixbot.EffectFailed {
+		return true
+	}
+	// no effect run: the build failed before effects (eval, other
+	// attributes), or the effect was skipped because one it is after failed
+	return (c.Effect == nil || c.Effect.Status == nixbot.EffectSkipped) &&
+		c.Build.Status == nixbot.BuildFailed
+}
+
+// Running reports whether the build may still pin a new toplevel.
+func (c *CI) Running() bool {
+	if c.Build.Running() {
+		return true
+	}
+	return c.Effect != nil && (c.Effect.Status == nixbot.EffectPending || c.Effect.Status == nixbot.EffectRunning)
+}
+
+// Status is a short description of the build's state for the host.
+func (c *CI) Status() string {
+	if c.Effect != nil && !c.Build.Running() {
+		return c.Effect.Status
+	}
+	return c.Build.Status
+}
+
+// Error is the effect's error, or else the build's, if any.
+func (c *CI) Error() string {
+	if c.Effect != nil && c.Effect.Error != nil {
+		return *c.Effect.Error
+	}
+	if c.Build.Error != nil {
+		return *c.Build.Error
+	}
+	return ""
 }
 
 // Snapshot is the state of all hosts at one point in time.
@@ -54,6 +112,9 @@ func Classify(h *Host) {
 	switch {
 	case h.PinErr != nil:
 		h.Kind = PinUnknown
+	case h.CI != nil && h.CI.Failed():
+		// main doesn't reach this host, whatever it runs now
+		h.Kind = BuildFailed
 	case h.Record != nil && h.Record.Toplevel != h.Pin:
 		// CI's last pin differs from the current one: moved by hand, e.g. a rollback.
 		h.Kind = PinnedByHand
@@ -71,6 +132,9 @@ func Classify(h *Host) {
 		h.Kind = RunningUnknown
 	case h.Comin.StorePath != h.Pin:
 		h.Kind = PendingDeploy
+	case h.CI != nil && h.CI.Running():
+		// running the pin, but CI may be about to move it
+		h.Kind = Building
 	case h.Comin.DeployStatus == comin.StatusDone:
 		h.Kind = InSync
 	default:

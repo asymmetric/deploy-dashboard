@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asymmetric/deploy-dashboard/internal/nixbot"
 	"github.com/asymmetric/deploy-dashboard/internal/state"
 )
 
@@ -26,6 +27,19 @@ var funcs = template.FuncMap{
 		}
 		return hash[:8] + "…-" + name
 	},
+	// ciCls colors a nixbot build or effect status.
+	"ciCls": func(status string) string {
+		switch status {
+		case nixbot.BuildSucceeded:
+			return "ok"
+		case nixbot.BuildFailed:
+			return "bad"
+		case nixbot.BuildCancelled, nixbot.EffectSkipped:
+			return "muted"
+		default:
+			return "pending"
+		}
+	},
 	"ago": func(t time.Time) string {
 		return time.Since(t).Round(time.Second).String()
 	},
@@ -33,7 +47,7 @@ var funcs = template.FuncMap{
 		switch k {
 		case state.InSync:
 			return "ok"
-		case state.PendingDeploy, state.Deploying, state.OfflineBehind:
+		case state.PendingDeploy, state.Deploying, state.OfflineBehind, state.Building:
 			return "pending"
 		case state.Offline:
 			// expected for laptops; not an error

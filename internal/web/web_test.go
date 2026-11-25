@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
+	"github.com/asymmetric/deploy-dashboard/internal/nixbot"
 	"github.com/asymmetric/deploy-dashboard/internal/pin"
 	"github.com/asymmetric/deploy-dashboard/internal/state"
 )
@@ -19,6 +20,13 @@ func TestRender(t *testing.T) {
 		{Name: "up", Pin: a, Record: &pin.Record{Commit: "0123456789abcdef", Toplevel: a}, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}, SeenAt: time.Now()},
 		{Name: "laptop", Pin: a, CominErr: errDown, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}, SeenAt: time.Now().Add(-3 * time.Hour)},
 		{Name: "never", Pin: a, CominErr: errDown},
+		{Name: "broken", Pin: a, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}, CI: &state.CI{
+			Build:    nixbot.Build{Number: 42, CommitSHA: "fedcba9876543210", Status: nixbot.BuildFailed},
+			Effect:   &nixbot.Effect{Kind: nixbot.KindPush, Name: "default.pin-broken", Status: nixbot.EffectFailed, Error: new("exit 1")},
+			BuildURL: "https://nixbot.example/repos/github/o/r/builds/42",
+			LogURL:   "https://nixbot.example/repos/github/o/r/builds/42/logs/effect:default.pin-broken",
+		}},
+		{Name: "noci", Pin: a, Comin: &comin.Status{StorePath: a, DeployStatus: comin.StatusDone}, CIErr: errors.New("GET x: 404 Not Found")},
 	}
 	for i := range hosts {
 		state.Classify(&hosts[i])
@@ -38,6 +46,9 @@ func TestRender(t *testing.T) {
 		`<td class="bad">unreachable</td>`,
 		`<span class="err">connect: no route to host</span>`,
 		`<a href="https://example.com/o/r/commit/0123456789abcdef"><code>01234567</code></a>`,
+		`<td class="bad">build failed</td>`,
+		`<a href="https://nixbot.example/repos/github/o/r/builds/42">#42</a> <a href="https://example.com/o/r/commit/fedcba9876543210"><code>fedcba98</code></a> <a class="bad" href="https://nixbot.example/repos/github/o/r/builds/42/logs/effect:default.pin-broken" title="exit 1">failed</a>`,
+		`<span class="err">GET x: 404 Not Found</span>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body lacks %q", want)

@@ -17,6 +17,7 @@ import (
 	"github.com/asymmetric/deploy-dashboard/internal/collector"
 	"github.com/asymmetric/deploy-dashboard/internal/comin"
 	"github.com/asymmetric/deploy-dashboard/internal/niks3"
+	"github.com/asymmetric/deploy-dashboard/internal/nixbot"
 	"github.com/asymmetric/deploy-dashboard/internal/ntfy"
 	"github.com/asymmetric/deploy-dashboard/internal/pin"
 	"github.com/asymmetric/deploy-dashboard/internal/store"
@@ -35,6 +36,12 @@ func main() {
 		stateFile  = flag.String("state-file", "state.json", "file for persisted pin records")
 		interval   = flag.Duration("interval", 15*time.Second, "refresh interval")
 		repoURL    = flag.String("repo-url", "", "web URL of the config repo, e.g. https://github.com/owner/dotfiles, for commit links (none if empty)")
+
+		nixbotURL    = flag.String("nixbot-url", "", "nixbot web URL, for the state of the newest build (off if empty)")
+		nixbotRepo   = flag.String("nixbot-repo", "", "the config repo as in nixbot's URLs: <forge>/<owner>/<name>, e.g. github/owner/dotfiles")
+		nixbotToken  = flag.String("nixbot-token-file", "", "file with a nixbot API token, needed for private repos (none if empty)")
+		nixbotBranch = flag.String("nixbot-branch", "main", "branch whose builds pin the hosts")
+		nixbotEffect = flag.String("nixbot-effect", "default.pin-{host}", "name of each host's pin effect, {host} is replaced by the host")
 	)
 	flag.Parse()
 
@@ -47,19 +54,11 @@ func main() {
 	if *pinsListen == "" && *ntfyURL == "" {
 		slog.Warn("neither -pins-listen nor -ntfy-topic-url is set: no pin records, so no commits and no detection of pins moved by hand")
 	}
-	var token string
-	if *pinsToken != "" {
-		b, err := os.ReadFile(*pinsToken)
-		if err != nil {
-			slog.Error("read pins token", "err", err)
-			os.Exit(1)
-		}
-		token = strings.TrimSpace(string(b))
-		if token == "" {
-			slog.Error("pins token file is empty", "file", *pinsToken)
-			os.Exit(1)
-		}
+	if *nixbotURL != "" && *nixbotRepo == "" {
+		slog.Error("-nixbot-repo is required with -nixbot-url")
+		os.Exit(2)
 	}
+	token := readToken("pins", *pinsToken)
 	st, err := store.Open(*stateFile)
 	if err != nil {
 		slog.Error("open state", "err", err)
@@ -78,6 +77,15 @@ func main() {
 	}
 	if *ntfyURL != "" {
 		col.Ntfy = &ntfy.Client{TopicURL: *ntfyURL, HTTP: httpc}
+	}
+	if *nixbotURL != "" {
+		col.Nixbot = &nixbot.Client{
+			BaseURL: *nixbotURL,
+			Repo:    strings.Trim(*nixbotRepo, "/"),
+			Token:   readToken("nixbot", *nixbotToken),
+			HTTP:    httpc,
+		}
+		col.NixbotBranch, col.NixbotEffect = *nixbotBranch, *nixbotEffect
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -109,4 +117,23 @@ func main() {
 		})
 	}
 	wg.Wait()
+}
+
+// readToken returns the trimmed contents of file, or "" if file is empty.
+// It exits if the file can't be read or holds no token.
+func readToken(what, file string) string {
+	if file == "" {
+		return ""
+	}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		slog.Error("read "+what+" token", "err", err)
+		os.Exit(1)
+	}
+	token := strings.TrimSpace(string(b))
+	if token == "" {
+		slog.Error(what+" token file is empty", "file", file)
+		os.Exit(1)
+	}
+	return token
 }

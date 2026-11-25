@@ -10,9 +10,11 @@ The pipeline it assumes:
 1. CI ([nixbot](https://github.com/Mic92/nixbot) effects) builds each host's toplevel on `main`, pushes it to niks3, and pins it as `pins/<host>`.
 2. comin on each host polls its pin, substitutes the closure and switches to it.
 
-Each host gets one of these states: `in sync`, `deploying`, `pinned, not yet deployed`, `deploy failing`, `pinned by hand` (the pin differs from CI's last pin, e.g. a rollback), `running path unknown`, `offline` and `offline, pin waiting` (the exporter is unreachable, so the last status seen is shown; normal for laptops), `unreachable` (never reached), `pin unknown`.
+Each host gets one of these states: `in sync`, `deploying`, `building` (the newest build on `main` is still evaluating, building or running the host's pin effect, so the pin may move), `build failed` (the newest build on `main` won't pin a new toplevel for the host: its pin effect failed, or the build failed before effects ran), `pinned, not yet deployed`, `deploy failing`, `pinned by hand` (the pin differs from CI's last pin, e.g. a rollback), `running path unknown`, `offline` and `offline, pin waiting` (the exporter is unreachable, so the last status seen is shown; normal for laptops), `unreachable` (never reached), `pin unknown`.
 
-Planned: PR status and per-host build results from GitHub check runs.
+With `-nixbot-url`, each row also shows the newest `main` build in [nixbot](https://github.com/Mic92/nixbot) and the status of the host's pin effect, linked to its log.
+
+Planned: a PR panel from nixbot builds of pull requests.
 
 ## Usage
 
@@ -44,6 +46,11 @@ Flags:
 | `-state-file` | `state.json` | where pin records and the ntfy read position are kept |
 | `-interval` | `15s` | refresh interval |
 | `-repo-url` | (none) | web URL of the config repo (GitHub-style `/commit/<sha>` paths), for commit links |
+| `-nixbot-url` | (off) | nixbot web URL, for the newest build of each host |
+| `-nixbot-repo` | (required with `-nixbot-url`) | the config repo as in nixbot's URLs: `<forge>/<owner>/<name>`, e.g. `github/owner/dotfiles` |
+| `-nixbot-token-file` | (none) | file with a nixbot API token, needed for private repos |
+| `-nixbot-branch` | `main` | branch whose builds pin the hosts |
+| `-nixbot-effect` | `default.pin-{host}` | name of each host's pin effect, `{host}` is replaced by the host |
 
 `GET /healthz` returns `ok`.
 
@@ -62,6 +69,11 @@ Add this flake as an input, then on the host that runs it:
     pinsAddress = "0.0.0.0"; # POST /pins on pinsPort, 8091
     # pinsTokenFile = "/run/secrets/deploy-dashboard-pins-token";
     # address = "127.0.0.1"; port = 8090; cominPort = 4243;
+    # nixbot = {
+    #   url = "https://nixbot.example.ts.net";
+    #   repo = "github/owner/dotfiles";
+    #   tokenFile = "/run/secrets/deploy-dashboard-nixbot-token";
+    # };
   };
 }
 ```
@@ -73,6 +85,7 @@ The service runs as a `DynamicUser` and keeps its state in `/var/lib/deploy-dash
 - comin's exporter must be reachable from the dashboard host on each host's `-comin-port`.
 - comin must export the deployed toplevel as the `out_path` label of `comin_deployment_info`. Upstream comin doesn't. With niks3, its `commit_id` label is always empty. Without the label, hosts show `running path unknown`, and only failures (`comin_last_deployment_failed`) are detected.
 - niks3's read proxy must serve `pins/<name>`.
+- For nixbot: the dashboard host must reach nixbot's web UI. For a private repo, create an API token at `<nixbot-url>/settings` while logged in as a user who can see the repo (tokens may expire), and pass it with `-nixbot-token-file`. A missing or wrong token shows as `404 Not Found` in the build column. Only the first page of builds (50) is checked for the newest non-cancelled one.
 - Each pin effect must post its record after `niks3 push --pin`:
 
   ```sh
